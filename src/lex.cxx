@@ -81,13 +81,14 @@ Token tokenize(const std::string& str, size_t line, size_t column) {
 // start of a token. Owns `it`/`posX`/`posY` for the duration of the directive
 // line (advancing them itself, including line-continuation via a trailing
 // backslash) and hands control back to processLex once the directive ends.
-std::generator<Token> processPreprocessor(
+void processPreprocessor(
     std::string::const_iterator& it,
     std::string::const_iterator end,
     size_t& posX,
-    size_t& posY
+    size_t& posY,
+    std::vector<Token>& tokens
 ) {
-    co_yield Token{ .lex = Token::Preprocessor, .name = "#", .line = posY, .column = posX };
+    tokens.push_back(Token{ .lex = Token::Preprocessor, .name = "#", .line = posY, .column = posX });
     ++it; ++posX;
 
     std::string currStr{};
@@ -98,13 +99,13 @@ std::generator<Token> processPreprocessor(
     // itself, e.g. "include"/"if"/"define") gets tagged Token::Preprocessor;
     // everything after it (macro names, args, included paths, ...) goes
     // through the normal tokenize() classification.
-    auto flush = [&]() -> Token {
+    auto flush = [&]() -> void {
         Token tok = (firstWord && isPreprocessorKeyword(currStr))
             ? Token{ .lex = Token::Preprocessor, .name = currStr, .line = tokStartY, .column = tokStartX }
             : tokenize(currStr, tokStartY, tokStartX);
         firstWord = false;
         currStr.clear();
-        return tok;
+        tokens.push_back(tok);
     };
 
     while (it != end) {
@@ -119,30 +120,30 @@ std::generator<Token> processPreprocessor(
         }
 
         if (c == '\n') {
-            if (!currStr.empty()) { co_yield flush(); }
+            if (!currStr.empty()) { flush(); }
             // End-of-directive marker: lets a downstream preprocessor stage
             // find the boundary of this directive's tokens regardless of
             // line-continuation quirks (a real '\n' never becomes a token
             // otherwise, so this is unambiguous).
-            co_yield Token{ .lex = Token::Preprocessor, .name = "\n", .line = posY, .column = posX };
+            tokens.push_back(Token{ .lex = Token::Preprocessor, .name = "\n", .line = posY, .column = posX });
             // Leave `it` on the newline; processLex's outer loop consumes it
             // and advances the line counter, so we don't double count.
-            co_return;
+            return;
         }
 
         if (isSeparator(c) && !currStr.empty()) {
-            co_yield flush();
+            flush();
         } else if (!isSeparator(c)) {
             if (currStr.empty()) { tokStartX = posX; tokStartY = posY; }
             currStr += c;
         }
         ++posX; ++it;
     }
-    if (!currStr.empty()) { co_yield flush(); }
-    co_yield Token{ .lex = Token::Preprocessor, .name = "\n", .line = posY, .column = posX };
+    if (!currStr.empty()) { flush(); }
+    tokens.push_back(Token{ .lex = Token::Preprocessor, .name = "\n", .line = posY, .column = posX });
 }
 
-std::generator<Token> processLex(std::string text) {
+void processLex(std::string text, std::vector<Token>& tokens) {
     std::string currStr{};
     size_t posX{1};
     size_t posY{1};
@@ -160,12 +161,12 @@ std::generator<Token> processLex(std::string text) {
         if (c == '#' && currStr.empty()) {
             // Hand control over to the preprocessor handler; it advances
             // `it`/`posX`/`posY` itself and yields whatever tokens it produces.
-            co_yield std::ranges::elements_of(processPreprocessor(it, text.cend(), posX, posY));
+            processPreprocessor(it, text.cend(), posX, posY, tokens);
             continue;
         }
 
         if (isSeparator(c) && !currStr.empty()) {
-            co_yield tokenize(currStr, tokStartY, tokStartX);
+            tokens.push_back(tokenize(currStr, tokStartY, tokStartX));
             currStr.clear();
         } else if (!isSeparator(c)) {
             if (currStr.empty()) { tokStartX = posX; tokStartY = posY; }
@@ -173,8 +174,8 @@ std::generator<Token> processLex(std::string text) {
         }
         ++posX; ++it;
     }
-    if (!currStr.empty()) { co_yield tokenize(currStr, tokStartY, tokStartX); }
-    co_return;
+    if (!currStr.empty()) { tokens.push_back(tokenize(currStr, tokStartY, tokStartX)); }
+    return;
 }
 
 std::expected<std::string, fs::filesystem_error> readFile(Path filepath) {
@@ -203,9 +204,7 @@ std::expected<std::vector<Token>, fs::filesystem_error> lex(Path filepath) {
     if (!text) { return std::unexpected(text.error()); }
 
     std::vector<Token> res;
-    for (auto&& token : processLex(std::move(*text))) {
-        res.push_back(std::move(token));
-    }
+    processLex(std::move(*text), res);
     return res;
 }
 

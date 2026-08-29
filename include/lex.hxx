@@ -30,7 +30,7 @@ std::expected<std::string, fs::filesystem_error> readFile(Path filepath);
 // Takes ownership of its input (rather than a reference) so the resulting
 // generator is self-contained and safe to store, pass around, or recurse
 // into -- needed once #include starts nesting processLex calls.
-std::generator<Token> processLex(std::string text);
+void processLex(std::string text, std::vector<Token>& tokens);
 
 std::expected<std::vector<Token>, fs::filesystem_error> lex(Path filepath);
 }   // namespace lex

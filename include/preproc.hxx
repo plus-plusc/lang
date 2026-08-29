@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lex.hxx"
+#include <expected>
 
 namespace lex {
 
@@ -63,10 +64,10 @@ private:
     // file's text) and yields the preprocessed stream: directives are
     // interpreted and consumed, macro invocations are expanded inline, and
     // #include recurses into process() for the included file.
-    std::generator<Token> process(std::generator<Token> tokens, Path currentFile);
+    std::expected<std::vector<Token>, PreprocessorError> process(std::vector<Token> tokens, Path currentFile);
 
-    void handleDefine(const std::vector<Token>& args, Path currentFile);
-    std::generator<Token> handleInclude(const std::vector<Token>& args, Path currentFile);
+    std::expected<void, PreprocessorError> handleDefine(const std::vector<Token>& args, Path currentFile);
+    std::expected<std::vector<Token>, PreprocessorError> handleInclude(const std::vector<Token>& args, Path currentFile);
     bool evalCondition(const std::vector<Token>& condTokens, Path currentFile);
 
     // Gathers a parenthesized, comma-separated argument list starting at
@@ -79,14 +80,14 @@ private:
     // Substitutes `def`'s parameters with `callArgs` (each pre-expanded),
     // then rescans the result so any macro invocations produced by the
     // substitution are themselves expanded.
-    std::vector<Token> substituteAndRescan(
+    std::expected<std::vector<Token>, PreprocessorError> substituteAndRescan(
         const MacroDef& def, const std::string& name,
         std::vector<std::vector<Token>> callArgs, Path currentFile
     );
 
     // Rescans a flat token list (a macro body, a macro argument, or a
     // #if condition), expanding any macro invocations found within it.
-    std::vector<Token> expandTokenList(const std::vector<Token>& in, Path currentFile);
+    std::expected<std::vector<Token>, PreprocessorError> expandTokenList(const std::vector<Token>& in, Path currentFile);
 };
 
 } // namespace lex
