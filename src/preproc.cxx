@@ -244,7 +244,7 @@ bool Preprocessor::evalCondition(const std::vector<Token>& condTokens, Path curr
         if (!t->name.empty() && std::isdigit(static_cast<unsigned char>(t->name.front()))) {
             advance();
             long long v = 0;
-            try { v = std::stoll(t->name); } catch (...) { v = 0; }
+            v = std::stoll(t->name);
             return v != 0;
         }
         advance();
@@ -257,7 +257,7 @@ bool Preprocessor::evalCondition(const std::vector<Token>& condTokens, Path curr
             if (expanded->size() == 1 && !(*expanded)[0].name.empty() &&
                 std::isdigit(static_cast<unsigned char>((*expanded)[0].name.front()))) {
                 long long v = 0;
-                try { v = std::stoll((*expanded)[0].name); } catch (...) { v = 0; }
+                v = std::stoll((*expanded)[0].name);
                 return v != 0;
             }
             return true;

@@ -1,0 +1,18 @@
+class int;
+
+void main() {
+    copy(int x, 5);
+    copy(int y, 10);
+    move(int z, x);
+
+    copy(bool cond, true);
+    loop (cond) {
+        match (x) {
+            default: {
+                copy(cond, false);
+            }
+        }
+    }
+
+    return;
+}

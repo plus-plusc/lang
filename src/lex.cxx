@@ -53,7 +53,9 @@ bool isOperator(const std::string& str) {
         c == '(' || 
         c == ')' || 
         c == '{' ||
-        c == '}';
+        c == '}' ||
+        c == ',' ||
+        c == ':';
 }
 
 // TODO

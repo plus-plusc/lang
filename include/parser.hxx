@@ -13,6 +13,12 @@
 
 namespace ast {
 
+struct ParseError {
+    std::string message;
+    size_t line;
+    size_t column;
+};
+
 // Forward declarations for AST nodes
 struct Expr;
 struct Stmt;
@@ -170,7 +176,7 @@ struct FuncDecl : Decl {
         : Decl{Kind::FuncDecl}, name(n), returnType(rt), params(std::move(p)), body(std::move(b)) {}
 };
 
-} // namespace ast
-
 // Parser interface
-std::unique_ptr<ast::Block> parse(std::vector<lex::Token> tokens);
+std::expected<std::unique_ptr<Block>, ParseError> parse(std::vector<lex::Token> tokens);
+
+} // namespace ast
